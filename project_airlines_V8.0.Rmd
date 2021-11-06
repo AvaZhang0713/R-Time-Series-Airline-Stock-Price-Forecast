@@ -1,0 +1,652 @@
+---
+title: "TimeSeries_Project_Group2"
+output: html_document
+---
+
+```{r, echo=FALSE, message=F, warning=F}
+#setwd("/Users/avazhang/Documents/20200501 Santa Clara University Study/20210330 FNCE 2524 Introduction to Time Series/05_Homework/Final Project")
+#getwd()
+library(fpp2)
+library(tis)
+require(dplyr)
+library("lubridate")
+library(urca)
+library(prophet)
+
+#airline <- read.csv(file = '/Users/avazhang/Documents/20200501 Santa Clara University Study/20210330 FNCE 2524 Introduction to Time Series/05_Homework/Final Project/Airlines.csv')
+
+airline <- read.csv(file = '/Users/xiyang/Documents/2524 TimeSeries/Airlines.csv')
+
+head(airline)
+```
+
+We represent below the closing prices for the 3 different stocks:
+
+```{r, echo=FALSE, message=F, warning=F}
+
+# plots
+airline.ts <- ts(airline)
+
+AAL <- airline.ts[,2]
+UAL <- airline.ts[,3]
+DAL <- airline.ts[,4]
+
+p1 <- autoplot(AAL) +
+  ggtitle("Historical Adj.Close Price of AAL")+
+  xlab("Day")+ylab("USD")
+
+p2 <- autoplot(UAL) +
+  ggtitle("Historical Adj.Close Price of UAL")+
+  xlab("Day")+ylab("USD")
+
+p3 <- autoplot(DAL) +
+  ggtitle("Historical Adj.Close Price of DAL")+
+  xlab("Day")+ylab("USD")
+
+gridExtra::grid.arrange(p1,p2,p3, nrow=2)
+```
+
+We run for every stock the autocorrelation function, to take a first look at the presence of stationary. The ACF of stationary data drops to zero relatively quickly while the ACF of non-stationary data decreases slowly.
+
+```{r, echo=FALSE, message=F, warning=F}
+
+#ACF
+p4 <- ggAcf(AAL) + 
+  ggtitle("ACF: AAL") 
+
+p5 <- ggAcf(UAL) + 
+  ggtitle("ACF: UAL")
+
+p6 <- ggAcf(DAL) + 
+  ggtitle("ACF: DAL")
+
+gridExtra::grid.arrange(p4,p5,p6, nrow=2)
+
+```
+
+trend data, non-stationary. non-seasonal. auto-correlation in the data.
+
+In this case, we can see that the autocorrelation function tends to 0 very slowly. All 3 variables are non-stationary. 
+We can try to stabilize the data by differentiating it.
+
+```{r, echo=FALSE, message=F, warning=F}
+
+# first-order difference data
+
+p7 <- autoplot(diff(AAL)) + ylab("Change in AAL") + xlab("Day")
+p8 <- autoplot(diff(UAL)) + ylab("Change in UAL") + xlab("Day")
+p9 <- autoplot(diff(DAL)) + ylab("Change in DAL") + xlab("Day")
+
+gridExtra::grid.arrange(p7,p8,p9, nrow=2)
+
+
+p10 <- ggAcf(diff(AAL))
+p11 <- ggAcf(diff(UAL))
+p12 <- ggAcf(diff(DAL))
+
+gridExtra::grid.arrange(p10,p11,p12, nrow=2)
+
+```
+
+By differencing the AAL stock, we were able to make the data stationary. 
+
+The autocorrelation function shows values close to zero for every lag.
+
+The ndiffs function uses a unit root test to determine the number of differences required for time series x to be made stationary. The result shows that one difference was enough to make the data stationary.
+
+In KPSS test, the null hypothesis is that the data is stationary and non-seasonal. The low value of the test-statistic confirms that the data is stationary.
+
+```{r, echo=FALSE, message=F, warning=F}
+
+# check difference levels
+AAL  %>% diff() %>% ndiffs()
+
+# first-order difference data
+AAL  %>% diff() %>% autoplot()
+
+AAL  %>% diff() %>% ggAcf()
+AAL  %>% diff() %>% ur.kpss() %>% summary()
+
+```
+
+By differencing the UAL stock, we were able to make the data stationary. 
+
+The autocorrelation function shows values close to zero for every lag.
+
+The ndiffs function shows that one difference was enough to make the data stationary.
+
+The low value of the test-statistic, in KPSS test, confirms that the data is stationary.
+
+```{r, echo=FALSE, message=F, warning=F}
+# check difference levels
+UAL  %>% diff() %>% ndiffs()
+
+# first-order difference data
+UAL  %>% diff() %>% autoplot()
+
+UAL  %>% diff() %>% ggAcf()
+UAL  %>% diff() %>% ur.kpss() %>% summary()
+
+```
+
+By differencing the DAL stock, we were able to make the data stationary. 
+
+The autocorrelation function shows values close to zero for every lag.
+
+The ndiffs function shows that one difference was enough to make the data stationary.
+
+The low value of the test-statistic, in KPSS test, confirms that the data is stationary.
+
+```{r, echo=FALSE, message=F, warning=F}
+# check difference levels
+DAL  %>% diff() %>% ndiffs()
+
+# first-order difference data
+DAL  %>% diff() %>% autoplot()
+
+DAL  %>% diff() %>% ggAcf()
+DAL  %>% diff() %>% ur.kpss() %>% summary()
+```
+
+Log transformation can be used to stabilize the variance of a series with non-constant variance. 
+
+The ndiffs function shows that using a log transformation is not enough to make the data stationary. Instead, by using a log transformation and differencing, the ndiffs functions give us a result of 0.
+
+The autocorrelation function shows values close to zero for every lag.
+
+The KPSS test using a log transformation and differencing, in KPSS test, gives us a lower value of test-statistic, compared to only differentiating.
+
+```{r, echo=FALSE, message=F, warning=F}
+
+# check log difference levels
+AAL  %>% log() %>% ndiffs()
+AAL  %>% log() %>% diff(lag=1) %>% ndiffs()
+
+# first-order log difference 
+AAL  %>% log() %>% diff(lag=1) %>% autoplot()
+
+AAL  %>% log() %>% diff(lag=1) %>% ur.kpss() %>% summary()
+AAL  %>% log() %>% diff(lag=1) %>% ggAcf()
+
+```
+
+The ndiffs function shows that using a log transformation is not enough to make the data stationary. Instead, by using a log transformation and differencing, the ndiffs functions give us a result of 0.
+
+The autocorrelation function shows values close to zero for every lag.
+
+The KPSS test using a log transformation and differencing, in KPSS test, gives us a lower value of test-statistic, compared to only differentiating.
+
+```{r, echo=FALSE, message=F, warning=F}
+
+## check log difference levels 
+UAL  %>% log() %>% ndiffs()
+UAL  %>% log() %>% diff(lag=1) %>% ndiffs()
+
+# first-order log difference 
+UAL  %>% log() %>% diff(lag=1) %>% autoplot()
+
+UAL  %>% log() %>% diff(lag=1) %>% ur.kpss() %>% summary()
+UAL  %>% log() %>% diff(lag=1) %>% ggAcf()
+
+```
+
+The ndiffs function shows that using a log transformation is not enough to make the data stationary. Instead, by using a log transformation and differencing, the ndiffs functions give us a result of 0.
+
+The autocorrelation function shows values close to zero for every lag.
+
+The KPSS test using a log transformation and differencing, in KPSS test, gives us a lower value of test-statistic, compared to only differentiating.
+
+```{r, echo=FALSE, message=F, warning=F}
+
+# check log difference levels  
+DAL  %>% log() %>% ndiffs()
+DAL  %>% log() %>% diff(lag=1) %>% ndiffs()
+
+# first-order log difference 
+DAL  %>% log() %>% diff(lag=1) %>% autoplot()
+
+DAL  %>% log() %>% diff(lag=1) %>% ur.kpss() %>% summary()
+DAL  %>% log() %>% diff(lag=1) %>% ggAcf()
+
+```
+
+To forecast the future valuesof these stocks, we will use an arima(p,i,q) model. 
+
+We have to choose the correct value of the different parameters:
+
+* i: we've already seen that we need to differentiate the data one time, so we can set i equal to 1.
+* p: PACF has all zero spikes beyond the pth spike.
+* q: ACF has all zero spikes beyond the qth spike
+
+```{r}
+
+#AAL ARIMA
+ggtsdisplay(AAL)
+ndiffs(AAL)
+ggtsdisplay(diff(AAL))
+
+```
+
+By looking at the autocorrelation funtion and partial autocorrelation function of the AAL stock, we could use a value of p=1 and q=1.
+
+```{r}
+#AAL ARIMA
+fit_AAL <- Arima(AAL,order=c(0,1,1))
+summary(fit_AAL)
+
+fit_AAL1 <- Arima(AAL,order=c(1,1,0))
+summary(fit_AAL1)
+```
+
+The auto.arima functions indicates to use an ARIMA(0,1,1). 
+
+```{r}
+#AAL ARIMA
+fitauto_AAL <- auto.arima(AAL)
+summary(fitauto_AAL)
+```
+
+
+```{r}
+#AAL ARIMA
+auto.arima(AAL, stepwise=FALSE,
+           approximation=FALSE)
+
+```
+
+
+```{r}
+#AAL ARIMA Forecast
+
+checkresiduals(fit_AAL)
+fit_AAL %>% forecast %>% autoplot
+```
+
+```{r}
+#UAL ARIMA 
+ggtsdisplay(UAL)
+ndiffs(UAL)
+ggtsdisplay(diff(UAL))
+
+
+```
+
+By looking at the autocorrelation funtion and partial autocorrelation function of the UAL stock, in the first 10 lags we don't see any spike. In this case, p = 0 and q = 0 could be the best choice.
+
+```{r}
+#UAL ARIMA 
+fit_UAL <- Arima(UAL,order=c(0,1,0))
+summary(fit_UAL)
+
+```
+
+The auto.arima functions indicates to use an ARIMA(0,1,0). 
+
+```{r}
+#UAL ARIMA 
+fitauto_UAL <- auto.arima(UAL)
+summary(fitauto_UAL)
+
+auto.arima(UAL, stepwise=FALSE,
+           approximation=FALSE)
+
+checkresiduals(fit_UAL)
+fit_UAL %>% forecast %>% autoplot
+```
+
+```{r}
+
+#DAL ARIMA
+ggtsdisplay(DAL)
+ndiffs(DAL)
+ggtsdisplay(diff(DAL))
+
+```
+
+By looking at the autocorrelation funtion and partial autocorrelation function of the DAL stock, in the first 6 lags we don't see any spike. In this case, p = 0 and q = 0 could be the best choice.
+
+```{r}
+
+fit_DAL <- Arima(DAL,order=c(0,1,1))
+summary(fit_DAL)
+
+fit_DAL1 <- Arima(DAL,order=c(1,1,0))
+summary(fit_DAL1)
+
+fit_DAL2 <- Arima(DAL,order=c(2,1,2))
+summary(fit_DAL2)
+
+```
+
+The auto.arima functions indicates to use an ARIMA(0,1,0). 
+
+```{r}
+
+fitauto_DAL <- auto.arima(DAL)
+summary(fitauto_DAL)
+
+auto.arima(DAL, stepwise=FALSE,
+           approximation=FALSE)
+
+checkresiduals(fit_DAL2)
+
+fit_DAL2 %>% forecast %>% autoplot
+```
+```{r}
+
+# ARIMA Model Test for AAL
+training.AAL <- subset(AAL, end=length(AAL)-330)
+test.AAL <- subset(AAL, start=length(AAL)-929)
+AAL.train <- Arima(training.AAL, order=c(0,1,1),lambda=0)
+AAL.train %>%
+  forecast(h=330) %>%
+  autoplot() + autolayer(test.AAL)
+
+autoplot(training.AAL, series="Training AAL") +
+  autolayer(fitted(AAL.train, h=330),
+    series="AAL 330-step fitted values")
+
+test.AAL <- Arima(test.AAL, model=AAL.train)
+accuracy(test.AAL)
+
+```
+
+
+```{r}
+
+# ARIMA Model Test for UAL
+training.UAL <- subset(UAL, end=length(UAL)-330)
+test.UAL <- subset(AAL, start=length(AAL)-929)
+UAL.train <- Arima(training.UAL, order=c(0,1,1),lambda=0)
+UAL.train %>%
+  forecast(h=330) %>%
+  autoplot() + autolayer(test.UAL)
+
+autoplot(training.UAL, series="Training AAL") +
+  autolayer(fitted(UAL.train, h=330),
+    series="UAL 330-step fitted values")
+
+test.UAL <- Arima(test.UAL, model=UAL.train)
+accuracy(test.UAL)
+```
+
+
+```{r}
+
+# ARIMA Model Test for DAL
+training.DAL <- subset(DAL, end=length(UAL)-330)
+test.DAL <- subset(DAL, start=length(DAL)-929)
+DAL.train <- Arima(training.DAL, order=c(0,1,1),lambda=0)
+DAL.train %>%
+  forecast(h=330) %>%
+  autoplot() + autolayer(test.DAL)
+
+autoplot(training.DAL, series="Training AAL") +
+  autolayer(fitted(DAL.train, h=330),
+    series="DAL 330-step fitted values")
+
+test.DAL <- Arima(test.DAL, model=DAL.train)
+accuracy(test.DAL)
+```
+
+
+```{r}
+# Facebook Prophet Model 
+
+# You need to copy the whole sentences below, to install 2 packages first.
+
+# install.packages('prophet')
+# install.packages("rstan", type = "binary", dependencies = TRUE, repos = "https://cloud.r-project.org")
+
+library(prophet)
+library(rstan)
+library(StanHeaders)
+library(ggplot2)
+
+#df_AAL <- read.csv(file = '/Users/avazhang/Documents/20200501 Santa Clara University Study/20210330 FNCE 2524 Introduction to Time Series/05_Homework/Final Project/AAL_prophet.csv')
+
+df_AAL <- read.csv(file = '/Users/xiyang/Documents/2524 TimeSeries/AAL_prophet.csv')
+df_UAL <- read.csv(file = '/Users/xiyang/Documents/2524 TimeSeries/UAL_prophet.csv')
+df_DAL <- read.csv(file = '/Users/xiyang/Documents/2524 TimeSeries/DAL_prophet.csv')
+
+
+
+#head(df_AAL)
+#head(df_UAL)
+#head(df_DAL)
+
+#create model for AAL
+m.AAL <- prophet(df_AAL,daily.seasonality=FALSE)
+future.AAL<- make_future_dataframe(m.AAL, periods = 330)
+tail(future.AAL)
+
+forecast.AAL <- predict(m.AAL, future.AAL)
+tail(forecast[c('ds', 'yhat', 'yhat_lower', 'yhat_upper')])
+
+prophet.AAL <- plot(m.AAL,forecast.AAL) +
+  ggtitle("Prediction of the AAL Stock Price using the Prophet")+
+  xlab("Date")+ylab("Close Stock Price")
+
+#create model for UAL
+
+m.UAL <- prophet(df_UAL,daily.seasonality=FALSE)
+future.UAL<- make_future_dataframe(m.UAL, periods = 330)
+tail(future.UAL)
+
+forecast.UAL <- predict(m.UAL, future.UAL)
+tail(forecast[c('ds', 'yhat', 'yhat_lower', 'yhat_upper')])
+
+prophet.UAL <- plot(m.UAL,forecast.UAL) +
+  ggtitle("Prediction of the UAL Stock Price using the Prophet")+
+  xlab("Date")+ylab("Close Stock Price")
+
+#create model for DAL
+
+m.DAL <- prophet(df_DAL,daily.seasonality=FALSE)
+future.DAL<- make_future_dataframe(m.DAL, periods = 330)
+tail(future.DAL)
+
+forecast.DAL <- predict(m.DAL, future.DAL)
+tail(forecast[c('ds', 'yhat', 'yhat_lower', 'yhat_upper')])
+
+prophet.DAL <- plot(m.DAL,forecast.DAL) +
+  ggtitle("Prediction of the DAL Stock Price using the Prophet")+
+  xlab("Date")+ylab("Close Stock Price")
+
+gridExtra::grid.arrange(prophet.AAL,prophet.UAL,prophet.DAL, nrow=2)
+
+```
+
+We use the generic "predict" function to get our forecast. The column yhat contains our the forecast result. The shaded blue area shows the uncertainty intervals with seasonal components.
+
+model reference link: https://towardsdatascience.com/time-series-forecasting-predicting-stock-prices-using-facebooks-prophet-model-9ee1657132b5
+
+The forecast broken down into trend, weekly seasonality, and yearly seasonality is shown as below.
+
+Based on the estimated trends, we can see that usually the stock price is maximum in early January (see 3rd subplot) and no significant difference on weekdays. Finally, the 1st subplot shows the stock will gradually increase in the near future. 
+
+January Effect: The January Effect is a tendency for increases in stock prices during the beginning of the year, particularly in the month of January. The cause behind the January Effect is attributed to tax-loss harvesting, consumer sentiment, year-end bonuses, raising year-end report performances, and more.
+
+```{r}
+#df.cv <- cross_validation(m.AAL, initial = 929, period = 90, horizon = 365, units = 'days')
+#head(df.cv)
+
+cutoffs <- as.Date(c('2019-04-01','2019-06-01', '2019-10-01','2020-01-01','2020-02-01','2020-04-23'))
+df.cv2 <- cross_validation(m, cutoffs = cutoffs, horizon = 330, units = 'days')
+
+df.p <- performance_metrics(df.cv2)
+head(df.p)
+
+plot_cross_validation_metric(df.cv, metric = 'mape')
+
+
+```
+
+Then we do cross-validation to assess prediction performance on a horizon of 330 days, with 6 cut-off days ( 2019-04-01','2019-06-01', '2019-10-01','2020-01-01','2020-02-01','2020-04-23'),. 
+
+Cross validation performance metrics are computed on a rolling window of the predictions in df_cv after sorting by horizon (ds minus cutoff).  
+
+This plot here shown for MAPE. Dots show the absolute percent error for each prediction in out cut-offs. The blue line shows the mean absolute percent error (MAPE), where the mean is taken over a rolling window of the dots. We see for this forecast that errors less than 2.5% are typical for predictions one month into the future, and that errors increase up to around 95% for predictions that are a year out.
+
+```{r}
+
+#Plot the trend, weekly, seasonally, yearly and daily components
+prophet_plot_components(m.AAL, forecast.AAL)
+prophet_plot_components(m.UAL, forecast.UAL)
+prophet_plot_components(m.DAL, forecast.DAL) 
+
+```
+```{r}
+
+
+AAL.train <- df_AAL[ 1:929,]
+UAL.train <- df_UAL[ 1:929,]
+DAL.train <- df_DAL[ 1:929,]
+
+
+m.AAL1 <- prophet(AAL.train,daily.seasonality=FALSE)
+future.AAL1<- make_future_dataframe(m.AAL1, periods = 330)
+tail(future.AAL1)
+
+forecast.AAL1 <- predict(m.AAL1, future.AAL1)
+tail(forecast[c('ds', 'yhat', 'yhat_lower', 'yhat_upper')])
+
+prophet.AAL1 <- plot(m.AAL1,forecast.AAL1) +
+  ggtitle("Test of the AAL Stock Price using the Prophet")+
+  xlab("Date")+ylab("Close Stock Price")
+
+legend
+#create model for UAL
+
+m.UAL1 <- prophet(UAL.train,daily.seasonality=FALSE)
+future.UAL1<- make_future_dataframe(m.UAL1, periods = 330)
+tail(future.UAL1)
+
+forecast.UAL1 <- predict(m.UAL1, future.UAL1)
+tail(forecast[c('ds', 'yhat', 'yhat_lower', 'yhat_upper')])
+
+prophet.UAL1 <- plot(m.UAL1,forecast.UAL1) +
+  ggtitle("Test of the UAL Stock Price using the Prophet")+
+  xlab("Date")+ylab("Close Stock Price")
+
+#create model for DAL
+
+m.DAL1 <- prophet(DAL.train,daily.seasonality=FALSE)
+future.DAL1<- make_future_dataframe(m.DAL1, periods = 330)
+tail(future.DAL1)
+
+forecast.DAL1 <- predict(m.DAL1, future.DAL1)
+tail(forecast[c('ds', 'yhat', 'yhat_lower', 'yhat_upper')])
+
+prophet.DAL1 <- plot(m.DAL1,forecast.DAL1) + 
+  ggtitle("Test of the DAL Stock Price using the Prophet")+
+  xlab("Date")+ylab("Close Stock Price")
+
+gridExtra::grid.arrange(prophet.AAL1,prophet.UAL1,prophet.DAL1, nrow=2)
+```
+
+
+If we use data before 2020/1/1 as training set and the most recent 1 year as test set. The forecast results show
+significant difference between the real data. This is make sense as the last year is special period. 
+
+```{r}
+
+#Plot the trend, weekly, seasonally, yearly and daily components
+prophet_plot_components(m.AAL1, forecast.AAL1)
+prophet_plot_components(m.UAL1, forecast.UAL1)
+prophet_plot_components(m.DAL1, forecast.DAL1) 
+
+```
+The test result of AAL shows the trend is decreasing, DAL has higher increase rate than UAL. weekly and yearly have no difference. 
+
+
+Now we try the 5 years' monthly closing data of these 3 airlines:
+
+```{r}
+
+#airline.month <- read.csv(file = '/Users/avazhang/Documents/20200501 Santa Clara University Study/20210330 FNCE 2524 Introduction to Time Series/05_Homework/Final Project/airlines_monthly.csv')
+
+airline.month <- read.csv(file = '/Users/xiyang/Documents/2524 TimeSeries/airlines_monthly.csv')
+
+head(airline.month)
+
+```
+
+The plot shows that there's no trend, non-stationary, non-seasonal. Similiar to daily results.
+
+```{r}
+
+# Monthly data, 5 years, 
+
+airline.month <- ts(airline.month)
+
+AAL.m <- airline.month[,2]
+
+autoplot(AAL.m) +
+  ggtitle("Historical Adj.Close Price of AAL")+
+  xlab("Monthly")+ylab("USD")
+
+ggtsdisplay(AAL.m) 
+
+```
+
+Since P/E ratio (https://www.investopedia.com/terms/p/price-earningsratio.asp) is an important indicator of stock price. 
+
+We create dynamic regression model to find correlation to quarterly price with EPS. 
+
+Basic EPS: how much of a firm's net income was allotted to each share of common stock. From AAL 10K and 10Q reports. 
+
+Quarterly average price: calculated base on monthly data from Yahoo Finance. (Q1=Jan,Feb,Mar....)
+
+```{r}
+
+# Dynamic regression models, based on quarterly price & EPS
+
+#airline.eps <- read.csv(file = '/Users/avazhang/Documents/20200501 Santa Clara University Study/20210330 FNCE 2524 Introduction to Time Series/05_Homework/Final Project/airline_EPS.csv')
+
+airline.eps <- read.csv(file = '/Users/xiyang/Documents/2524 TimeSeries/airline_EPS.csv')
+
+head(airline.eps)
+
+airline.eps <- ts(airline.eps)
+
+```
+
+```{r}
+
+AAL.eps <- airline.eps[,2]
+p.eps <- autoplot(AAL.eps)+
+  ggtitle("Quarterly EPS of AAL")+
+  xlab("Quarter")+ylab("USD/share")
+
+AAL.q <- airline.eps[,3]
+p.q <- autoplot(AAL.q) +
+  ggtitle("Quarterly Average Close Price of AAL")+
+  xlab("Quarter")+ylab("Close Stock Price")
+
+gridExtra::grid.arrange(p.eps,p.q, nrow=2)
+
+```
+
+From the ACF plot, we can see that there's no evidence of serial correlation. And the Ljung-Box test stats' p-value is 0.09 suggesting that there's no autocorrelation remaining in the residual.
+
+Using the ARIMA model (1, 0 0), we make the forecast for the next 20 quarters is like this - within the range of USD 20-30 in stock price.
+
+```{r}
+# create regression
+fit.q <- auto.arima(AAL.q, xreg=AAL.eps)
+fit.q
+
+checkresiduals(fit.q)
+
+# forecast
+fc <- forecast(fit.q, xreg=AAL.eps)
+autoplot(fc) + xlab("Quarter") + ylab("Close Stock Price")
+
+```
+The forecast result shows slight increase of stock price based on the quarterly EPS results. AICc score as low as 130.99 which is much lower than other models. The ACF indicates the residuals is near 0 without autocorrelation. The distribution of residual is right skewed, which is caused by the small size of data set. The outliers at the left side shows the significant variance of the data set. 
+
+
+
+
+
